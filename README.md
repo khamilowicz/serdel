@@ -12,6 +12,24 @@ Composable, parallel file uploader/converter.
 
 You can generate file handle before storing it for polling state and download link.
 
+## TODO
+
+[] versioning
+[] parallel processing
+[] info
+[] streaming
+[] messaging
+[] ttl/tempfiles
+
+storages
+[] local
+[] aws
+[] openstack
+
+servers
+[] Local
+[] Endpoint
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed

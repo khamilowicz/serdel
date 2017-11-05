@@ -1,6 +1,4 @@
 defmodule Serdel.Repo.Local do
-  @behaviour Serdel.Repo
-
   @moduledoc """
   Local storage for files.
   """
