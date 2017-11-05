@@ -27,6 +27,12 @@ defmodule Serdel.Repo.Local do
         @storage_dir <> "/" <> Path.basename(path)
       end
 
+      def delete(%SerFile{path: path} = file) when is_bitstring(path) do
+        with :ok <- File.rm(path) do
+          {:ok, file}
+        end
+      end
+
       def save(%SerFile{path: path} = file) when is_bitstring(path) do
         with {:exists, true} <- {:exists, File.exists?(path)},
              new_path = storage_path(file),

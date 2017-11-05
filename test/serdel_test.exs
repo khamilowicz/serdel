@@ -29,7 +29,7 @@ defmodule SerdelTest do
     {:ok, pid, path}
   end
 
-  test "FileRepo.save/1 saves new file to filesystem" do
+  test "FileRepo.save/1 saves local file" do
     {:ok, _, path} = new_temp_file("newfile", [:write])
     File.write(path, "Some text")
 
@@ -41,5 +41,19 @@ defmodule SerdelTest do
     assert File.read(path) == File.read(file.path)
 
     File.rm(file.path)
+  end
+
+  test "FileRepo.delete/1 deletes local files" do
+    {:ok, _, path} = new_temp_file("newfile", [:write])
+    File.write(path, "Some text")
+
+    {:ok, file} =
+      %Serdel.File{path: path}
+      |> FileRepo.save()
+
+    assert File.exists?(file.path)
+
+    assert {:ok, file} = FileRepo.delete(file)
+    refute File.exists?(file.path)
   end
 end
