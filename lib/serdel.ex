@@ -1,18 +1,8 @@
 defmodule Serdel do
   @moduledoc """
-  Documentation for Serdel.
+  Serdel consists of:
+  - multiprocess uploader
+  - file processor
+  - uri generator
   """
-
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Serdel.hello
-      :world
-
-  """
-  def hello do
-    :world
-  end
 end
