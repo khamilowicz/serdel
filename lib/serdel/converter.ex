@@ -20,20 +20,18 @@ defmodule Serdel.Converter do
   end
 
   def put_version(conversion, name, conv, name_fun) do
-    update_in(
-      conversion.versions,
-      &Map.put(&1, name, %Version{conversion: %{conv | root: name}, name_fun: name_fun})
-    )
+    put_in(conversion.versions[name], %Version{
+      conversion: %{conv | root: name},
+      name_fun: name_fun
+    })
   end
 
   def put_repo(%{root: name} = conversion, name, repo) do
     %{conversion | repo: repo}
   end
 
-  def put_repo(%{versions: versions} = conversion, name, repo) do
-    version = Map.get(versions, name)
-    new_version = put_in(version.conversion.repo, repo)
-    update_in(conversion.versions, &Map.put(&1, name, new_version))
+  def put_repo(conversion, name, repo) do
+    put_in(conversion.versions[name].conversion.repo, repo)
   end
 
   def execute(root_conversion) do
@@ -44,7 +42,7 @@ defmodule Serdel.Converter do
     |> Enum.reduce({:ok, %{}}, fn
          {_, _}, {:error, sum} -> {:error, sum}
          {name, {:ok, val}}, {:ok, sum} -> {:ok, Map.put(sum, name, val)}
-         {name, {:error, val}}, sum -> {:error, val}
+         {_name, {:error, val}}, _sum -> {:error, val}
        end)
   end
 
@@ -72,6 +70,7 @@ defmodule Serdel.Converter do
 
   defp set_file_name(conversion, %{file: file}, name_fun) do
     extension = Path.extname(file.file_name)
-    %{conversion | file: %Serdel.File{file_name: name_fun.(file, %{extension: extension})}}
+    new_file = %Serdel.File{file_name: name_fun.(file, %{extension: extension})}
+    %{conversion | file: new_file}
   end
 end
