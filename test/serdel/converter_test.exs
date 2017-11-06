@@ -8,7 +8,7 @@ defmodule Serdel.ConverterTest do
       Converter.put_transformation(%Converter{}, Converter.ImageMagick, ["-resize", "64x64"])
 
     conversion_with_version =
-      %Serdel.File{file_name: "original_version"}
+      %Serdel.File{file_name: "test_image.jpg", path: "./test/support/test_image.jpg"}
       |> Converter.change(:original)
       |> Converter.put_transformation(Converter.ImageMagick, ["-scale", "20x20"])
       |> Converter.put_version(:small, resize_conversion, fn file, meta ->

@@ -6,6 +6,7 @@ defmodule Serdel.Converter do
   end
 
   def change(converter_or_file, name \\ nil)
+
   def change(%__MODULE__{} = converter, _name) do
     converter
   end
@@ -28,19 +29,20 @@ defmodule Serdel.Converter do
   def put_repo(%{root: name} = conversion, name, repo) do
     %{conversion | repo: repo}
   end
+
   def put_repo(%{versions: versions} = conversion, name, repo) do
     version = Map.get(versions, name)
-    new_version = put_in version.conversion.repo, repo
-    update_in conversion.versions, &Map.put(&1, name, new_version)
+    new_version = put_in(version.conversion.repo, repo)
+    update_in(conversion.versions, &Map.put(&1, name, new_version))
   end
 
   def execute(conversion) do
-    {:ok, list_versions(conversion) }
+    {:ok, list_versions(conversion)}
   end
 
   defp list_versions(conversion) do
     conversion.versions
-    |> Enum.map(fn({key, %{conversion: %{file: file}}}) -> {key, file} end)
+    |> Enum.map(fn {key, %{conversion: %{file: file}}} -> {key, file} end)
     |> Enum.into(%{conversion.root => conversion.file})
   end
 end
