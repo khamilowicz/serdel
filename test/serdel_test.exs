@@ -1,5 +1,5 @@
 defmodule SerdelTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest Serdel
 
   alias Serdel.Test.FileRepo

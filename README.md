@@ -14,6 +14,8 @@ You can generate file handle before storing it for polling state and download li
 
 ## TODO
 
+[] different storage and retrieval
+
 [] versioning
 [] parallel processing
 [] info
