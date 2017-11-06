@@ -1,18 +1,18 @@
 defmodule Serdel.ConverterTest do
   use ExUnit.Case, async: true
 
-  alias Serdel.{Converter, Test.FileRepo, ImageInfo}
+  alias Serdel.{Converter, Test.FileRepo, ImageInfo, Transformers}
 
   test "defines conversions of images" do
     resize_conversion =
-      Converter.put_transformation(%Converter{}, Converter.ImageMagick, ["-resize", "64x64"])
+      Converter.put_transformation(%Converter{}, Transformers.ImageMagick, ["-resize", "64x64\!"])
 
     conversion_with_version =
       %Serdel.File{file_name: "test_image.jpg", path: "./test/support/test_image.jpg"}
       |> Converter.change(:original)
-      |> Converter.put_transformation(Converter.ImageMagick, ["-scale", "20x20"])
+      |> Converter.put_transformation(Transformers.ImageMagick, ["-scale", "20x20\!"])
       |> Converter.put_version(:small, resize_conversion, fn file, meta ->
-           file.filename <> "_small" <> meta.extension
+           Path.rootname(file.file_name) <> "_small" <> meta.extension
          end)
       |> Converter.put_repo(:original, FileRepo)
       |> Converter.put_repo(:small, FileRepo)

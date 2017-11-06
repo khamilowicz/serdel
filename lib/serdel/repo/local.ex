@@ -21,8 +21,11 @@ defmodule Serdel.Repo.Local do
     quote location: :keep do
       @storage_dir unquote(opts[:storage_dir])
 
-      def storage_path(%{path: path}) do
+      def storage_path(%{path: path, file_name: nil}) do
         @storage_dir <> "/" <> Path.basename(path)
+      end
+      def storage_path(%{file_name: file_name}) do
+        @storage_dir <> "/" <> Path.basename(file_name)
       end
 
       def delete(%SerFile{path: path} = file) when is_bitstring(path) do
