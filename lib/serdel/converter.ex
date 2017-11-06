@@ -39,20 +39,25 @@ defmodule Serdel.Converter do
   def execute(root_conversion) do
     list_versions(root_conversion)
     |> Enum.map(fn {name, conversion} ->
-      {name, execute_conversion(root_conversion.file, conversion)}
-    end)
+         {name, execute_conversion(root_conversion.file, conversion)}
+       end)
     |> Enum.reduce({:ok, %{}}, fn
-      ({_, _}, {:error, sum}) -> {:error, sum}
-      ({name, {:ok, val}}, {:ok, sum}) -> {:ok, Map.put(sum, name, val)}
-      ({name, {:error, val}}, sum) -> {:error, val}
-    end)
+         {_, _}, {:error, sum} -> {:error, sum}
+         {name, {:ok, val}}, {:ok, sum} -> {:ok, Map.put(sum, name, val)}
+         {name, {:error, val}}, sum -> {:error, val}
+       end)
   end
 
   defp execute_conversion(input_file, %{repo: repo, file: file, transformation: nil}) do
     repo.save(%{input_file | file_name: file.file_name})
   end
-  defp execute_conversion(input_file, %{repo: repo, file: file, transformation: {transformer, args}}) do
-    {:ok, temp_file} = Serdel.TempFile.new
+
+  defp execute_conversion(input_file, %{
+         repo: repo,
+         file: file,
+         transformation: {transformer, args}
+       }) do
+    {:ok, temp_file} = Serdel.TempFile.new()
     :ok = transformer.transform(%{input: input_file, output: temp_file}, args)
     repo.save(%{temp_file | file_name: file.file_name})
   end

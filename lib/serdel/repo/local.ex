@@ -24,6 +24,7 @@ defmodule Serdel.Repo.Local do
       def storage_path(%{path: path, file_name: nil}) do
         @storage_dir <> "/" <> Path.basename(path)
       end
+
       def storage_path(%{file_name: file_name}) do
         @storage_dir <> "/" <> Path.basename(file_name)
       end

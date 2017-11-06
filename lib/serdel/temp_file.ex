@@ -7,5 +7,4 @@ defmodule Serdel.TempFile do
     {:ok, pid} = File.open(file_path, [:read, :write])
     {:ok, %Serdel.File{path: file_path, file_name: file_name}}
   end
-
 end
