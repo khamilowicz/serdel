@@ -34,43 +34,45 @@ defmodule Serdel.Converter do
     put_in(conversion.versions[name].conversion.repo, repo)
   end
 
-  def execute(root_conversion) do
-    list_versions(root_conversion)
-    |> Enum.map(fn {name, conversion} ->
-         {name, execute_conversion(root_conversion.file, conversion)}
+  def execute(%{root: root, file: file} = root_conversion, name_fun \\ &default_name_fun/2) do
+    case execute_conversion(file, root_conversion, name_fun) do
+      {:ok, new_file} ->
+        %{
+          root => {:ok, new_file},
+          versions: traverse_versions(%{root_conversion | file: new_file}, &execute/2)
+        }
+
+      other ->
+        %{root => other}
+    end
+  end
+
+  defp traverse_versions(%{versions: versions, file: file}, callback) do
+    versions
+    |> Enum.map(fn {k, %{conversion: conversion, name_fun: name_fun}} ->
+         callback.(%{conversion | file: file}, name_fun)
        end)
-    |> Enum.reduce({:ok, %{}}, fn
-         {_, _}, {:error, sum} -> {:error, sum}
-         {name, {:ok, val}}, {:ok, sum} -> {:ok, Map.put(sum, name, val)}
-         {_name, {:error, val}}, _sum -> {:error, val}
-       end)
+    |> Enum.reduce(%{}, &Map.merge/2)
   end
 
   defp execute_conversion(input_file, %{repo: repo, file: file, transformation: nil}) do
     repo.save(%{input_file | file_name: file.file_name})
   end
 
-  defp execute_conversion(input_file, %{
-         repo: repo,
-         file: file,
-         transformation: {transformer, args}
-       }) do
+  defp execute_conversion(
+         input_file,
+         %{
+           repo: repo,
+           file: file,
+           transformation: {transformer, args}
+         },
+         name_fun
+       ) do
+    extension = Path.extname(input_file.file_name)
     {:ok, temp_file} = Serdel.TempFile.new()
     :ok = transformer.transform(%{input: input_file, output: temp_file}, args)
-    repo.save(%{temp_file | file_name: file.file_name})
+    repo.save(%{temp_file | file_name: name_fun.(file, %{extension: extension})})
   end
 
-  defp list_versions(root_conversion) do
-    root_conversion.versions
-    |> Enum.map(fn {key, %{conversion: conversion, name_fun: name_fun}} ->
-         {key, set_file_name(conversion, root_conversion, name_fun)}
-       end)
-    |> Enum.into(%{root_conversion.root => root_conversion})
-  end
-
-  defp set_file_name(conversion, %{file: file}, name_fun) do
-    extension = Path.extname(file.file_name)
-    new_file = %Serdel.File{file_name: name_fun.(file, %{extension: extension})}
-    %{conversion | file: new_file}
-  end
+  defp default_name_fun(%{file_name: fname}, _), do: fname
 end
