@@ -1,3 +1,8 @@
 defmodule Serdel.File do
-  defstruct [:path, :file_name]
+  defstruct [:path, :file_name, meta: %{}]
+
+  def extract_meta(file) do
+    extension = Path.extname(file.path)
+    put_in(file.meta[:extension], extension)
+  end
 end

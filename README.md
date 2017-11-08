@@ -22,6 +22,8 @@ You can generate file handle before storing it for polling state and download li
 [] streaming
 [] messaging
 [] ttl/tempfiles
+[] conversion by external services
+[] validations
 
 storages
 [] local
@@ -31,6 +33,7 @@ storages
 servers
 [] Local
 [] Endpoint
+[] ftp
 
 ## Installation
 

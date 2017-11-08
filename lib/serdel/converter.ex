@@ -5,6 +5,13 @@ defmodule Serdel.Converter do
     defstruct [:conversion, :name_fun]
   end
 
+  defdelegate execute(conversion), to: Serdel.Converter.Executor
+  defdelegate async_execute(conversion, opts \\ []), to: Serdel.Converter.Executor
+
+  def info({server, file_id}) do
+    Serdel.Converter.ExecutorServer.info(server, file_id)
+  end
+
   def change(converter_or_file, name \\ nil)
 
   def change(%__MODULE__{} = converter, _name) do
@@ -33,46 +40,4 @@ defmodule Serdel.Converter do
   def put_repo(conversion, name, repo) do
     put_in(conversion.versions[name].conversion.repo, repo)
   end
-
-  def execute(%{root: root, file: file} = root_conversion, name_fun \\ &default_name_fun/2) do
-    case execute_conversion(file, root_conversion, name_fun) do
-      {:ok, new_file} ->
-        %{
-          root => {:ok, new_file},
-          versions: traverse_versions(%{root_conversion | file: new_file}, &execute/2)
-        }
-
-      other ->
-        %{root => other}
-    end
-  end
-
-  defp traverse_versions(%{versions: versions, file: file}, callback) do
-    versions
-    |> Enum.map(fn {k, %{conversion: conversion, name_fun: name_fun}} ->
-         callback.(%{conversion | file: file}, name_fun)
-       end)
-    |> Enum.reduce(%{}, &Map.merge/2)
-  end
-
-  defp execute_conversion(input_file, %{repo: repo, file: file, transformation: nil}) do
-    repo.save(%{input_file | file_name: file.file_name})
-  end
-
-  defp execute_conversion(
-         input_file,
-         %{
-           repo: repo,
-           file: file,
-           transformation: {transformer, args}
-         },
-         name_fun
-       ) do
-    extension = Path.extname(input_file.file_name)
-    {:ok, temp_file} = Serdel.TempFile.new()
-    :ok = transformer.transform(%{input: input_file, output: temp_file}, args)
-    repo.save(%{temp_file | file_name: name_fun.(file, %{extension: extension})})
-  end
-
-  defp default_name_fun(%{file_name: fname}, _), do: fname
 end

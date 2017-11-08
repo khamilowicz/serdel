@@ -39,7 +39,7 @@ defmodule Serdel.Repo.Local do
         with {:exists, true} <- {:exists, File.exists?(path)},
              new_path = storage_path(file),
              :ok <- File.cp(path, new_path) do
-          {:ok, %SerFile{path: new_path, file_name: file.file_name}}
+          {:ok, Serdel.File.extract_meta(%SerFile{path: new_path, file_name: file.file_name})}
         else
           {:exists, false} ->
             {:error, :enoent}
