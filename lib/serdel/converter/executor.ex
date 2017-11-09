@@ -28,7 +28,7 @@ defmodule Serdel.Converter.Executor do
   end
 
   defp execute_async_conversion(%Serdel.File{} = file, conversion, name_fun, opts) do
-    {:ok, server} = Serdel.Converter.ExecutorServer.start_link([])
+    {:ok, server} = Supervisor.start_child(Serdel.Converter.ExecutorSupervisor, [])
 
     {:ok, file_ident} =
       request_async_conversion(server, file, conversion, name_fun, opts)

@@ -10,6 +10,7 @@ defmodule Serdel.Application do
     children = [
       # Starts a worker by calling: Serdel.Worker.start_link(arg)
       # {Serdel.Worker, arg},
+      Serdel.Converter.ExecutorSupervisor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

@@ -1,5 +1,5 @@
 defmodule Serdel.Converter.ExecutorServer do
-  use GenServer
+  use GenServer, restart: :transient
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg)
@@ -24,28 +24,30 @@ defmodule Serdel.Converter.ExecutorServer do
           %{status: :unknown, file: nil}
         {:ok, %Serdel.File{} = file} ->
           %{status: :finished, file: file}
-        {:ok, nil} ->
+        {:ok, :started} ->
           %{status: :started, file: nil}
+        {:ok, :registered} ->
+          %{status: :registered, file: nil}
       end
     {:reply, ret, state}
   end
 
   def handle_call({:insert, %Serdel.File{} = file, fun}, _from, state) do
     file_promise = start_work(generate_file_promise(), fun, file)
-    {:reply, {:ok, file_promise}, insert_result(state, file_promise, nil)}
+    {:reply, {:ok, file_promise}, insert_result(state, file_promise, :started)}
   end
 
   def handle_call({:insert, input_file_promise, fun}, _from, state) when is_bitstring(input_file_promise) do
     case Map.fetch(state.results, input_file_promise) do
-      :error ->
-        file_promise = generate_file_promise()
-        {:reply, {:ok, file_promise}, insert_new_todo(state, input_file_promise, {file_promise, fun})}
-      {:ok, nil} ->
-        file_promise = generate_file_promise()
-        {:reply, {:ok, file_promise}, insert_new_todo(state, input_file_promise, {file_promise, fun})}
       {:ok, %Serdel.File{} = ready_file} ->
         file_promise = start_work(generate_file_promise(), fun, ready_file)
-        {:reply, {:ok, file_promise}, insert_result(state, file_promise, nil)}
+        {:reply, {:ok, file_promise}, insert_result(state, file_promise, :started)}
+      _ ->
+        file_promise = generate_file_promise()
+        new_state =
+          insert_new_todo(state, input_file_promise, {file_promise, fun})
+          |> insert_result(file_promise, :registered)
+          {:reply, {:ok, file_promise}, new_state}
     end
   end
 
@@ -54,8 +56,21 @@ defmodule Serdel.Converter.ExecutorServer do
     start_todos(file_promise, promised_file, new_state.tasks)
     {:noreply, new_state}
   end
+
   def handle_info({:DOWN, _, _, _, _}, state) do
-    {:noreply, state}
+    if pending_tasks?(state) do
+      {:noreply, state}
+    else
+      {:stop, :normal, state}
+    end
+  end
+
+  defp pending_tasks?(%{results: results}) do
+    Map.values(results)
+    |> Enum.any?(&is_nil/1)
+
+    # TODO: remove when implemented file registry
+    true
   end
 
   defp start_todos(ready_file_promise, promised_file, tasks) do
