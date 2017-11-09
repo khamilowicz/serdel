@@ -5,7 +5,7 @@ defmodule Serdel.ConverterTest do
 
   setup do
     resize_conversion =
-      Converter.put_transformation(%Converter{}, Transformers.ImageMagick, ["-resize", "64x64\!"])
+      Converter.put_transformation(%Converter{}, Transformers.ImageMagick, ["-resize", "84x84\!"])
 
     another_resize_conversion =
       Converter.put_transformation(%Converter{}, Transformers.ImageMagick, ["-resize", "64x64\!"])
@@ -48,8 +48,10 @@ defmodule Serdel.ConverterTest do
     assert {:ok, info} = ImageInfo.extract(small_version)
 
     assert small_version.file_name == "test_image_small.jpg"
-    assert info.height == 64
-    assert info.width == 64
+    assert info.height == 84
+    assert info.width == 84
+
+    assert {:ok, info} = ImageInfo.extract(smaller_version)
 
     assert smaller_version.file_name == "test_image_small_smaller.jpg"
     assert info.height == 64

@@ -9,75 +9,81 @@ defmodule Serdel.Converter.ExecutorServer do
     {:ok, %{results: %{}, tasks: %{}}}
   end
 
-  def insert(server, input_ident, fun) do
-    GenServer.call(server, {:insert, input_ident, fun})
+  def insert(server, file_promise, fun) do
+    GenServer.call(server, {:insert, file_promise, fun})
   end
 
-  def info(server, file_id) do
-    GenServer.call(server, {:info, file_id})
+  def info(server, file_promise) do
+    GenServer.call(server, {:info, file_promise})
   end
 
-  def handle_call({:info, file_id}, _from, state) do
+  def handle_call({:info, file_promise}, _from, state) do
     ret =
-    case Map.fetch(state.results, file_id) do
-      :error ->
-        %{status: :unknown, file: nil}
-      {:ok, nil} ->
-        %{status: :started, file: nil}
-      {:ok, {:ok, file}} ->
-        %{status: :finished, file: file}
-    end
+      case Map.fetch(state.results, file_promise) do
+        :error ->
+          %{status: :unknown, file: nil}
+        {:ok, %Serdel.File{} = file} ->
+          %{status: :finished, file: file}
+        {:ok, nil} ->
+          %{status: :started, file: nil}
+      end
     {:reply, ret, state}
   end
 
   def handle_call({:insert, %Serdel.File{} = file, fun}, _from, state) do
-    ident = :crypto.strong_rand_bytes(20) |> Base.url_encode64()
-    Task.async(fn ->
-      {:ready, ident, fun.(file, file, ident)}
-    end)
-    {:reply, {:ok, ident}, put_in(state, [:results, ident], nil)}
+    file_promise = start_work(generate_file_promise(), fun, file)
+    {:reply, {:ok, file_promise}, insert_result(state, file_promise, nil)}
   end
-  def handle_call({:insert, input_ident, fun}, _from, state) when is_bitstring(input_ident) do
-    ident = :crypto.strong_rand_bytes(20) |> Base.url_encode64()
 
-    case Map.fetch(state.results, input_ident) do
-      {:ok, nil} ->
-        new_task = {ident, fun}
-        tasks = Map.update(state.tasks, input_ident, [new_task], &[new_task | &1])
-        {:reply, {:ok, ident}, %{state | tasks: tasks}}
-
-      {:ok, {:ok, result}} ->
-        Task.async(fn ->
-          {:ready, ident, fun.(result, result, ident)}
-        end)
-
-        {:reply, {:ok, ident}, put_in(state, [:results, input_ident], nil)}
-
+  def handle_call({:insert, input_file_promise, fun}, _from, state) when is_bitstring(input_file_promise) do
+    case Map.fetch(state.results, input_file_promise) do
       :error ->
-        new_task = {ident, fun}
-        tasks = Map.update(state.tasks, input_ident, [new_task], &[new_task | &1])
-        {:reply, {:ok, ident}, %{state | tasks: tasks}}
+        file_promise = generate_file_promise()
+        {:reply, {:ok, file_promise}, insert_new_todo(state, input_file_promise, {file_promise, fun})}
+      {:ok, nil} ->
+        file_promise = generate_file_promise()
+        {:reply, {:ok, file_promise}, insert_new_todo(state, input_file_promise, {file_promise, fun})}
+      {:ok, %Serdel.File{} = ready_file} ->
+        file_promise = start_work(generate_file_promise(), fun, ready_file)
+        {:reply, {:ok, file_promise}, insert_result(state, file_promise, nil)}
     end
   end
 
-  def handle_info({_, {:ready, ident, result}}, state) do
-    new_state = put_in(state, [:results, ident], result)
-    {:noreply, start_tasks(ident, result, new_state)}
+  def handle_info({_, {:ready, file_promise, {:ok, promised_file}}}, state) do
+    new_state = insert_result(state, file_promise, promised_file)
+    start_todos(file_promise, promised_file, new_state.tasks)
+    {:noreply, new_state}
   end
-  def handle_info(res, state) do
+  def handle_info({:DOWN, _, _, _, _}, state) do
     {:noreply, state}
   end
 
-  defp start_tasks(root_ident, {:ok, result}, state) do
-    case Map.fetch(state.tasks, root_ident) do
-      {:ok, ts} ->
-        Enum.each(ts, fn({ident, fun}) ->
-          Task.async(fn -> {:ready, ident, fun.(result, elem(state.results[root_ident], 1), ident)} end)
-        end)
-        state
-      :error ->
-        state
-    end
-
+  defp start_todos(ready_file_promise, promised_file, tasks) do
+    tasks
+    |> Map.get(ready_file_promise, [])
+    |> Enum.each(fn({file_promise, fun}) ->
+      start_work(file_promise, fun, promised_file)
+    end)
   end
+
+  defp start_work(file_promise, fun, file) do
+    Task.async(fn ->
+      {:ready, file_promise, fun.(file, file_promise)}
+    end)
+    file_promise
+  end
+
+  defp generate_file_promise() do
+    :crypto.strong_rand_bytes(20) |> Base.url_encode64()
+  end
+
+  defp insert_new_todo(state, file_promise, task) do
+    tasks = Map.update(state.tasks, file_promise, [task], &[task | &1])
+    %{state | tasks: tasks}
+  end
+
+  defp insert_result(state, file_promise, result) do
+    put_in state.results[file_promise], result
+  end
+
 end
