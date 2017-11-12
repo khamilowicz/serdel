@@ -53,7 +53,7 @@ defmodule Serdel.Converter.ExecutorServer do
 
   def handle_info({_, {:ready, file_promise, {:ok, promised_file}}}, state) do
     new_state = insert_result(state, file_promise, promised_file)
-    start_todos(file_promise, promised_file, new_state.tasks)
+    :ok = start_todos(file_promise, promised_file, new_state.tasks)
     {:noreply, new_state}
   end
 
