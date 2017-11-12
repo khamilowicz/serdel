@@ -27,6 +27,11 @@ defmodule Serdel.ConverterTest do
       |> Converter.put_repo(:original, FileRepo)
       |> Converter.put_repo(:small, FileRepo)
 
+    on_exit fn ->
+      File.ls!("./test/support/uploads/")
+      |> Enum.map(&File.rm_rf("./test/support/uploads/#{&1}"))
+    end
+
     {:ok, %{conversion: conversion_with_version}}
   end
 
@@ -56,10 +61,6 @@ defmodule Serdel.ConverterTest do
     assert smaller_version.file_name == "test_image_small_smaller.jpg"
     assert info.height == 64
     assert info.width == 64
-
-    FileRepo.delete(original_file)
-    FileRepo.delete(small_version)
-    FileRepo.delete(smaller_version)
   end
 
   describe "Converter.async_execute" do
@@ -100,10 +101,6 @@ defmodule Serdel.ConverterTest do
       assert original_file.file_name == "test_image.jpg"
       assert info.height == 20
       assert info.width == 20
-
-      FileRepo.delete(original_file)
-      FileRepo.delete(small_version)
-      FileRepo.delete(smaller_version)
     end
 
     test "executes conversions asynchronously and send messages to given process", %{
@@ -121,10 +118,7 @@ defmodule Serdel.ConverterTest do
       assert_receive {Serdel.Converter, ^original_version_id, {:finished, original_file}}, 1_000
       assert_receive {Serdel.Converter, ^small_version_id, {:finished, small_version}}, 1_000
       assert_receive {Serdel.Converter, ^smaller_version_id, {:finished, smaller_version}}, 1_000
-
-      FileRepo.delete(original_file)
-      FileRepo.delete(small_version)
-      FileRepo.delete(smaller_version)
     end
   end
+
 end
