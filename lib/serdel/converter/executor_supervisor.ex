@@ -6,9 +6,11 @@ defmodule Serdel.Converter.ExecutorSupervisor do
   end
 
   def init(_) do
-    Supervisor.init([
-      Serdel.Converter.ExecutorServer
-    ], strategy: :simple_one_for_one)
+    Supervisor.init(
+      [
+        Serdel.Converter.ExecutorServer
+      ],
+      strategy: :simple_one_for_one
+    )
   end
-
 end

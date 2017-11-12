@@ -22,13 +22,17 @@ defmodule Serdel.Converter.ExecutorServer do
       case Map.fetch(state.results, file_promise) do
         :error ->
           %{status: :unknown, file: nil}
+
         {:ok, %Serdel.File{} = file} ->
           %{status: :finished, file: file}
+
         {:ok, :started} ->
           %{status: :started, file: nil}
+
         {:ok, :registered} ->
           %{status: :registered, file: nil}
       end
+
     {:reply, ret, state}
   end
 
@@ -37,17 +41,21 @@ defmodule Serdel.Converter.ExecutorServer do
     {:reply, {:ok, file_promise}, insert_result(state, file_promise, :started)}
   end
 
-  def handle_call({:insert, input_file_promise, fun}, _from, state) when is_bitstring(input_file_promise) do
+  def handle_call({:insert, input_file_promise, fun}, _from, state)
+      when is_bitstring(input_file_promise) do
     case Map.fetch(state.results, input_file_promise) do
       {:ok, %Serdel.File{} = ready_file} ->
         file_promise = start_work(generate_file_promise(), fun, ready_file)
         {:reply, {:ok, file_promise}, insert_result(state, file_promise, :started)}
+
       _ ->
         file_promise = generate_file_promise()
+
         new_state =
           insert_new_todo(state, input_file_promise, {file_promise, fun})
           |> insert_result(file_promise, :registered)
-          {:reply, {:ok, file_promise}, new_state}
+
+        {:reply, {:ok, file_promise}, new_state}
     end
   end
 
@@ -76,15 +84,16 @@ defmodule Serdel.Converter.ExecutorServer do
   defp start_todos(ready_file_promise, promised_file, tasks) do
     tasks
     |> Map.get(ready_file_promise, [])
-    |> Enum.each(fn({file_promise, fun}) ->
-      start_work(file_promise, fun, promised_file)
-    end)
+    |> Enum.each(fn {file_promise, fun} ->
+         start_work(file_promise, fun, promised_file)
+       end)
   end
 
   defp start_work(file_promise, fun, file) do
     Task.async(fn ->
       {:ready, file_promise, fun.(file, file_promise)}
     end)
+
     file_promise
   end
 
@@ -98,7 +107,6 @@ defmodule Serdel.Converter.ExecutorServer do
   end
 
   defp insert_result(state, file_promise, result) do
-    put_in state.results[file_promise], result
+    put_in(state.results[file_promise], result)
   end
-
 end

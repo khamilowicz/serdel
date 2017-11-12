@@ -27,10 +27,10 @@ defmodule Serdel.ConverterTest do
       |> Converter.put_repo(:original, FileRepo)
       |> Converter.put_repo(:small, FileRepo)
 
-    on_exit fn ->
+    on_exit(fn ->
       File.ls!("./test/support/uploads/")
       |> Enum.map(&File.rm_rf("./test/support/uploads/#{&1}"))
-    end
+    end)
 
     {:ok, %{conversion: conversion_with_version}}
   end
@@ -87,14 +87,13 @@ defmodule Serdel.ConverterTest do
 
       assert %{
                status: :finished,
-               file: small_version
+               file: _small_version
              } = Converter.info(small_version_id)
 
       assert %{
                status: :finished,
-               file: smaller_version
+               file: _smaller_version
              } = Converter.info(smaller_version_id)
-
 
       assert {:ok, info} = ImageInfo.extract(original_file)
 
@@ -107,7 +106,7 @@ defmodule Serdel.ConverterTest do
       conversion: conversion
     } do
       assert %{
-        original: {:ok, {_, original_version_id}},
+               original: {:ok, {_, original_version_id}},
                versions: %{
                  small: {:ok, {_, small_version_id}},
                  versions: %{resized: {:ok, {_, smaller_version_id}}}
@@ -116,9 +115,29 @@ defmodule Serdel.ConverterTest do
 
       assert_receive {Serdel.Converter, ^original_version_id, :started}, 1_000
       assert_receive {Serdel.Converter, ^original_version_id, {:finished, original_file}}, 1_000
-      assert_receive {Serdel.Converter, ^small_version_id, {:finished, small_version}}, 1_000
-      assert_receive {Serdel.Converter, ^smaller_version_id, {:finished, smaller_version}}, 1_000
+      assert_receive {Serdel.Converter, ^small_version_id, {:finished, _small_version}}, 1_000
+      assert_receive {Serdel.Converter, ^smaller_version_id, {:finished, _smaller_version}}, 1_000
+
+      assert original_file.file_name == "test_image.jpg"
     end
   end
 
+  describe "put_meta" do
+    test "assigns meta for given versions", %{conversion: conversion} do
+      assert %{
+               original: {:ok, _original_file},
+               versions: %{
+                 small: {:ok, small_version},
+                 versions: %{resized: {:ok, _smaller_version}}
+               }
+             } =
+               conversion
+               |> Converter.put_meta(:small, random: "value or meta")
+               |> Converter.put_meta(:small, mfa: {ImageInfo, :extract, []})
+               |> Converter.execute()
+
+      assert small_version.meta[:random] == "value or meta"
+      assert small_version.meta[:mfa].height == 84
+    end
+  end
 end

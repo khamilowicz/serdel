@@ -1,5 +1,5 @@
 defmodule Serdel.Converter do
-  defstruct versions: %{}, root: nil, transformation: nil, repo: nil, file: nil
+  defstruct versions: %{}, root: nil, transformations: [], repo: nil, file: nil, meta: []
 
   defmodule Version do
     defstruct [:conversion, :name_fun]
@@ -23,7 +23,7 @@ defmodule Serdel.Converter do
   end
 
   def put_transformation(conversion, transformer, args) do
-    %{conversion | transformation: {transformer, args}}
+    update_in(conversion.transformations, &List.insert_at(&1, -1, {transformer, args}))
   end
 
   def put_version(conversion, name, conv, name_fun) do
@@ -39,5 +39,13 @@ defmodule Serdel.Converter do
 
   def put_repo(conversion, name, repo) do
     put_in(conversion.versions[name].conversion.repo, repo)
+  end
+
+  def put_meta(%{name: name} = conversion, name, meta) do
+    %{conversion | meta: meta}
+  end
+
+  def put_meta(conversion, name, meta) do
+    update_in(conversion.versions[name].conversion.meta, &Keyword.merge(meta, &1))
   end
 end
