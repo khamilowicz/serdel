@@ -1,12 +1,12 @@
 defmodule Serdel.Converter do
-  defstruct versions: %{}, root: nil, transformations: [], repo: nil, file: nil, meta: []
+  defstruct versions: %{}, root: nil, transformations: [], repo: nil, file: nil, meta: [], storage: %{}
 
   defmodule Version do
     defstruct [:conversion, :name_fun]
   end
 
-  defdelegate execute(conversion), to: Serdel.Converter.Executor
-  defdelegate async_execute(conversion, opts \\ []), to: Serdel.Converter.Executor
+  defdelegate execute(conversion, options \\ %{}), to: Serdel.Converter.Executor
+  defdelegate async_execute(conversion, opts \\ %{}), to: Serdel.Converter.Executor
 
   def info({server, file_id}) do
     Serdel.Converter.ExecutorServer.info(server, file_id)
@@ -41,11 +41,15 @@ defmodule Serdel.Converter do
     put_in(conversion.versions[name].conversion.repo, repo)
   end
 
-  def put_meta(%{name: name} = conversion, name, meta) do
+  def put_meta(%{root: name} = conversion, name, meta) do
     %{conversion | meta: meta}
   end
 
   def put_meta(conversion, name, meta) do
     update_in(conversion.versions[name].conversion.meta, &Keyword.merge(meta, &1))
+  end
+
+  def put_storage(conversion, name, storage_fun) when is_function(storage_fun, 2) do
+    update_in conversion.storage, &Map.put(&1, name, storage_fun)
   end
 end

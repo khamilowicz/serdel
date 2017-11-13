@@ -1,7 +1,7 @@
 defmodule Serdel.ConverterTest do
   use ExUnit.Case, async: true
 
-  alias Serdel.{Converter, Test.FileRepo, ImageInfo, Transformers}
+  alias Serdel.{Converter, Test.FileRepo, Test.DataStore, ImageInfo, Transformers}
 
   setup do
     resize_conversion =
@@ -73,27 +73,27 @@ defmodule Serdel.ConverterTest do
                }
              } = Converter.async_execute(conversion)
 
-      assert %{
+      assert {:ok, %{
                status: :started,
                file: nil
-             } = Converter.info(original_file_id)
+             }} = Converter.info(original_file_id)
 
       Process.sleep(1_000)
 
-      assert %{
+      assert {:ok, %{
                status: :finished,
                file: original_file
-             } = Converter.info(original_file_id)
+             }} = Converter.info(original_file_id)
 
-      assert %{
+      assert {:ok, %{
                status: :finished,
                file: _small_version
-             } = Converter.info(small_version_id)
+             }} = Converter.info(small_version_id)
 
-      assert %{
+      assert {:ok, %{
                status: :finished,
                file: _smaller_version
-             } = Converter.info(smaller_version_id)
+             }} = Converter.info(smaller_version_id)
 
       assert {:ok, info} = ImageInfo.extract(original_file)
 
@@ -111,7 +111,7 @@ defmodule Serdel.ConverterTest do
                  small: {:ok, {_, small_version_id}},
                  versions: %{resized: {:ok, {_, smaller_version_id}}}
                }
-             } = Converter.async_execute(conversion, stream: self())
+             } = Converter.async_execute(conversion, %{stream: self()})
 
       assert_receive {Serdel.Converter, ^original_version_id, :started}, 1_000
       assert_receive {Serdel.Converter, ^original_version_id, {:finished, original_file}}, 1_000
@@ -139,5 +139,15 @@ defmodule Serdel.ConverterTest do
       assert small_version.meta[:random] == "value or meta"
       assert small_version.meta[:mfa].height == 84
     end
+  end
+
+  @tag :skip
+  test "execute sets store for file data", %{conversion: conversion} do
+    conversion
+    |> Converter.put_meta(:small, this: "is me!")
+    |> Converter.async_execute(%{data_store: DataStore})
+
+    assert_receive {:data_store, %Serdel.File{meta: %{this: "is me!"}}}
+
   end
 end

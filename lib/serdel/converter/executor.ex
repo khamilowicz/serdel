@@ -1,13 +1,13 @@
 defmodule Serdel.Converter.Executor do
-  def execute(conversion) do
+  def execute(conversion, options \\ %{}) do
     %{conversion | file: Serdel.File.extract_meta(conversion.file)}
-    do_execute(conversion, &execute_conversion/3, fn %{file_name: fname}, _ -> fname end)
+    do_execute(conversion, &execute_conversion(&1, &2, &3, options), fn %{file_name: fname}, _ -> fname end)
   end
 
-  def async_execute(conversion, options) do
+  def async_execute(conversion, options \\ %{}) do
     do_execute(conversion, &execute_async_conversion(&1, &2, &3, options), fn %{file_name: fname},
-                                                                              _ ->
-      fname
+      _ ->
+        fname
     end)
   end
 
@@ -28,7 +28,7 @@ defmodule Serdel.Converter.Executor do
   end
 
   defp execute_async_conversion(%Serdel.File{} = file, conversion, name_fun, opts) do
-    {:ok, server} = Supervisor.start_child(Serdel.Converter.ExecutorSupervisor, [])
+    {:ok, server} = Supervisor.start_child(Serdel.Converter.ExecutorSupervisor, [opts])
 
     {:ok, file_ident} = request_async_conversion(server, file, conversion, name_fun, opts)
 
@@ -45,10 +45,10 @@ defmodule Serdel.Converter.Executor do
   defp request_async_conversion(server, file_or_promise, conversion, name_fun, opts) do
     Serdel.Converter.ExecutorServer.insert(server, file_or_promise, fn file, file_promise ->
       if opts[:stream], do: send(opts[:stream], {Serdel.Converter, file_promise, :started})
-      {:ok, res} = execute_conversion(file, %{conversion | file: file}, name_fun)
+      {:ok, res} = execute_conversion(file, %{conversion | file: file}, name_fun, opts)
 
       if opts[:stream],
-        do: send(opts[:stream], {Serdel.Converter, file_promise, {:finished, res}})
+      do: send(opts[:stream], {Serdel.Converter, file_promise, {:finished, res}})
 
       {:ok, res}
     end)
@@ -78,33 +78,36 @@ defmodule Serdel.Converter.Executor do
   end
 
   defp execute_conversion(
-         input_file,
-         %{repo: repo, file: file, transformations: [], meta: meta},
-         name_fun
-       ) do
-    repo.save(%{input_file | file_name: name_fun.(file, file.meta)})
+    input_file,
+    %{repo: repo, file: file, transformations: [], meta: meta},
+    name_fun,
+    options
+  ) do
+    %{input_file | file_name: name_fun.(file, file.meta)}
+    |> repo.save()
     |> collect_and_assign_meta(meta)
   end
 
   defp execute_conversion(
-         input_file,
-         %{
-           repo: repo,
-           file: file,
-           transformations: [{transformer, args} | transformations]
-         } = conversion,
-         name_fun
-       ) do
+    input_file,
+    %{
+      repo: repo,
+      file: file,
+      transformations: [{transformer, args} | transformations]
+    } = conversion,
+    name_fun,
+    options
+  ) do
     {:ok, temp_file} = Serdel.TempFile.new()
     :ok = transformer.transform(%{input: input_file, output: temp_file}, args)
-    execute_conversion(temp_file, %{conversion | transformations: transformations}, name_fun)
+    execute_conversion(temp_file, %{conversion | transformations: transformations}, name_fun, options)
   end
 
   defp traverse_versions(%{versions: versions, file: file}, callback) do
     versions
     |> Enum.map(fn {_version_key, %{conversion: conversion, name_fun: name_fun}} ->
-         callback.(%{conversion | file: file}, name_fun)
-       end)
+      callback.(%{conversion | file: file}, name_fun)
+    end)
     |> Enum.reduce(%{}, &Map.merge/2)
   end
 end
