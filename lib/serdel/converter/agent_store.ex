@@ -1,38 +1,34 @@
-defmodule Serdel.Converter.AgentStore do
-  use Agent
+defmodule Serdel.Converter.MemoryStore do
   @behaviour Serdel.DataStore
+
+  def child_spec(opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, []}
+    }
+  end
 
   # TODO:
   # self() will change after restart, so this is not the best idea
-  def start_link([]) do
-    Agent.start_link(fn -> %{results: %{}} end, name: {:global, self()})
+  def start_link() do
+    Agent.start_link(fn -> :ets.new(__MODULE__, [:set, :public, :named_table]) end)
   end
 
   def info(file_promise) do
-    Agent.get({:global, self()}, &do_info(&1, file_promise))
-  end
-  defp do_info(%{results: results}, file_promise) do
-    case Map.fetch(results, file_promise) do
-      :error ->
-        {:ok, %{status: :not_registered, file: nil}}
-
-      {:ok, %Serdel.File{} = file} ->
-        {:ok, %{status: :finished, file: file}}
-
-      {:ok, :started} ->
+    case :ets.lookup(__MODULE__, file_promise) do
+      [{^file_promise, :started}] ->
         {:ok, %{status: :started, file: nil}}
-
-      {:ok, :registered} ->
+      [{^file_promise, :registered}] ->
         {:ok, %{status: :registered, file: nil}}
+      [{^file_promise, %Serdel.File{} = file}] ->
+        {:ok, %{status: :finished, file: file}}
+      [] ->
+        {:ok, %{status: :not_registered, file: nil}}
     end
   end
 
   def store(file_promise, file) do
-    Agent.update({:global, self()}, &do_store(&1, file_promise, file))
-  end
-
-  defp do_store(state, file_promise, file) do
-    put_in(state.results[file_promise], file)
+    :ets.insert(__MODULE__, {file_promise, file})
   end
 
   def register_file() do

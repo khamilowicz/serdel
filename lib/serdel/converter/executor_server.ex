@@ -2,7 +2,7 @@ defmodule Serdel.Converter.ExecutorServer do
   use GenServer, restart: :transient
 
   @default_options %{
-    data_store: Serdel.Converter.AgentStore,
+    data_store: Serdel.Converter.MemoryStore
   }
 
   def start_link(arg, opts \\ %{}) do
@@ -11,8 +11,6 @@ defmodule Serdel.Converter.ExecutorServer do
 
   def init({_arg, opts}) do
     options = Map.merge(@default_options, opts)
-    # Supervisor.start_link([options[:data_store]], strategy: :one_for_one)
-    options[:data_store].start_link([])
     {:ok, %{tasks: %{}, options: options}}
   end
 
